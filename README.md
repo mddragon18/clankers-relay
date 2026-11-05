@@ -16,6 +16,13 @@ here are not team members.
 - The demo target is a real bug in a repo the judges know: `NousResearch/hermes-agent#148719`
   item 3 — the machine uv cache PM creates and nothing reaps. Our fix merged on our fork:
   [mddragon18/hermes-agent#2](https://github.com/mddragon18/hermes-agent/pull/2).
+- Scope against open upstream work: [#128030](https://github.com/NousResearch/hermes-agent/pull/128030)
+  normalizes the *comparison* side of the same pruner (spelling like `ruamel.yaml` vs lock name
+  `ruamel-yaml`); our patch fixes the *parse* side (`dist_info` captured `[^-]+`, so hyphenated dist
+  names never matched and their buckets were kept forever). Different halves, both needed, and ours
+  composes with theirs. [#139381](https://github.com/NousResearch/hermes-agent/pull/139381) touches the
+  cache-seed merge, not pruning. The doctor warning-text half of item 3 belongs to
+  [#128474](https://github.com/NousResearch/hermes-agent/issues/128474) and is not ours.
 
 ## What Switch does, and what the relay does
 
@@ -144,4 +151,5 @@ relay/demo_run.py               live-stack end-to-end run
 findings.md                     what we measured on Switch 0.31.0, and how the framing changed
 evidence/                       logs, redacted by construction (credentials never enter logs)
 VIDEO-SCRIPT.md                 3-minute walkthrough, claim-by-claim against the logs
+SETUP.md                      identities, rooms, env vars, and the honest limits
 ```

@@ -143,4 +143,5 @@ relay/test_relay_contract.py    58 contract tests
 relay/demo_run.py               live-stack end-to-end run
 findings.md                     what we measured on Switch 0.31.0, and how the framing changed
 evidence/                       logs, redacted by construction (credentials never enter logs)
+VIDEO-SCRIPT.md                 3-minute walkthrough, claim-by-claim against the logs
 ```

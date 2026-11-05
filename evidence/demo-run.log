@@ -1,0 +1,35 @@
+teardown of any previous demo run
+  teardown room support-inbox-room: 200
+  teardown room engineering-room: 200
+  teardown agent support-inbox: 200
+  teardown agent release-engineer: 200
+  teardown agent clankers-relay: 200
+
+agents registered: support-inbox (registration token owner)=6fa5bc18-8fd8-4abf-a33a-5cf177924c46, release-engineer (owner key)=c18f108f-3f85-49fe-a77a-e730ee2e3bfe, clankers-relay (owner key)=46329aff-369e-4664-becb-15248ed606a3
+rooms: support-inbox-room=dda61b19-ef72-447f-8ea2-627ebf1c4e0a engineering-room=9fe450ce-89b6-4245-91d4-82b40ef1708f
+roster: inbox room = [support-inbox, clankers-relay]; engineering room = [release-engineer, clankers-relay]; support-inbox is not in the engineering room
+
+step 1 — the untrusted inbox posts both payloads into its own room
+  well-formed ticket posted: 200
+  hostile payload posted: 200
+
+step 2 — the relay reads the inbox room with its OWN credential
+  relay read: 200 after 1 poll(s)
+  payloads read from the inbox room: 2
+
+step 3 — the contract relay validates each payload against the engineering repo
+  ACCEPTED file=pm/packages.py severity=high
+  REJECTED (unknown field(s) in contract: evidence)
+
+step 4 — the relay forwards only validated `{file, severity, summary}`
+  forwarded into engineering room: 200 {"file": "pm/packages.py", "severity": "high", "summary": "cache/uv grows forever: uv_cache_dir() creates it and no pruner reaps it, so hermes doctor warns about a directory Hermes owns"}
+
+step 5 — the trusted engineer reads its room
+  engineer read: 200 after 1 poll(s)
+  engineering room shows the validated ticket: True
+  engineering room shows the hostile text: False
+
+step 6 — the untrusted agent has no membership in the engineering room
+  direct cross-room read by support-inbox: 403 {"detail":"Agent is not a member of this room"}
+
+RESULT: DEMO OK — one validated ticket crossed, the injection was refused by the relay, and Switch refused the untrusted agent's direct read

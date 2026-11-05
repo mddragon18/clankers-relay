@@ -1,0 +1,18 @@
+cache-prune live check — June's box, 2026-11-05 IST
+
+Real machine cache measured on this box (`du -sh ~/.hermes/cache/uv`):
+  1.8G    /home/md/.hermes/cache/uv
+  archive buckets: 355
+  wheel/sdist index entries: 467
+  entries whose dist name the repo uv.lock cannot resolve: 187
+  archive buckets with no identifiable `.dist-info` marker (after the hyphen fix): 0
+
+`hermes pm cache-prune` run against a real sample copied out of that cache (53 MB: 12 in-lock
+entries + 40 wheel entries and 20 archive buckets the lock cannot resolve):
+
+  cache-prune: removed 60 superseded entries, reclaimed 21.6 MB from /home/md/.hermes/cache/uv-prune-livecheck
+  sample size after prune: 27M
+  surviving archive buckets: 12   (only the in-lock ones)
+
+Counts line up exactly: 40 stale index entries + 20 stale buckets = 60 pruned, and the 12
+in-lock entries survived. Reclaiming the whole cache on this box would free roughly 1.6 GB.

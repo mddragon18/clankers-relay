@@ -1,0 +1,29 @@
+recheck 2026-11-05 (IST) — live Switch 0.31.0, same configuration
+stack: switch-switch-1 / switch-postgres-1 / switch-mattermost-1 / switch-gateway-1 (up 11h)
+
+A. direct cross-tenant access, agent's own key, room it is not in
+  GET  /agents/{puller}/rooms/{trusted-room}/history      403 {"detail":"Agent is not a member of this room"}
+  POST /agents/{puller}/ops/get_room_detail {room_id}     403 {"detail":"Agent is not a member of this room"}
+  POST /agents/{puller}/ops/invite_agent_to_room          403   (clean refusal, no crash)
+  POST /agents/{puller}/message {room_id: trusted-room}   403   (rejected before delivery)
+
+B. legacy moderation surface on the 0.31.0 image (not on main)
+  POST /agents/{puller}/moderation/rooms/{foreign}/invite 500  PermissionError: Not authorized to change this room's membership
+  note: routes removed on upstream main; core/tests/switch_core/bridges/agent/api/test_refusal_status_codes.py
+        covers the ops path returning 4xx (issue #1045). Version-local.
+
+C. roster gap (the real one, and upstream's #805)
+  POST /agents/{puller}/moderation/rooms {"agent_names":["trusted3"]}     200
+  psql room_agents for that room:  trusted3/Admin          <- another owner's agent, no invite
+  psql invitations count: 0                                 <- nothing to accept
+  POST /agents/{puller}/moderation/rooms/{room}/invite  (self)            200 {"ok":true}
+  POST /agents/{puller}/message -> victim stream                          delivered=True (verify-run1, verify-run2)
+  victim agent GET history on attacker room (its own roster row)          200
+
+D. cleanup after recheck
+  rooms deleted, agents deleted; stale bridge row "Mattermost: public-leak-room" removed
+  (DELETE /gateway/rooms/d50d316b-... -> 200)
+  final ground truth: rooms = Mattermost: Off-Topic, Mattermost: Town Square; agents 0; room_agents 0
+
+E. relay on the same payload
+  REJECTED (summary: instruction-shaped text refused); 14 unit tests pass (relay-tests.log)

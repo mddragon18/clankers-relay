@@ -42,7 +42,9 @@ ENV = Path(os.environ.get("SWITCH_ENV_FILE", "/home/md/switch-deploy/.env"))
 STATE = Path(os.environ.get("DEMO_STATE_FILE", "/home/md/switch-deploy/demo-state.json"))
 LOG = Path(os.environ.get("DEMO_LOG_FILE", "/home/md/Documents/switch-evidence/demo-run.log"))
 REPO = Path(os.environ.get("ENGINEERING_REPO", "/home/md/clankers/hermes-fix"))
-DOCKER = {"DOCKER_HOST": "unix:///run/user/1000/docker.sock", "PATH": "/usr/bin:/bin"}
+# Overridable so a non-Linux host (or a rootless socket elsewhere) can run the teardown path.
+DOCKER = {"DOCKER_HOST": os.environ.get("DOCKER_HOST", "unix:///run/user/1000/docker.sock"),
+          "PATH": os.environ.get("PATH", "/usr/bin:/bin")}
 DEMO_AGENTS = ("support-inbox", "release-engineer", "clankers-relay")
 DEMO_ROOMS = ("support-inbox-room", "engineering-room")
 

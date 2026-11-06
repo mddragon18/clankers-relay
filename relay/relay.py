@@ -6,9 +6,11 @@ No free-text `evidence` field — anything the inbox agent can put in a payload 
 three fields is text that would land in the trusted agent's context, so the contract refuses it.
 The file is validated against the repository root (no escape, no symlink hop, no absolute path)
 and severity is normalized to a fixed vocabulary. Validation is deterministic plain Python: no
-LLM, no shell, no git. The relay is a plain service, not a Switch agent — it is the only
-component that crosses rooms, and it shares one Switch connection with filter=all (its own
-memberships, never another agent's).
+LLM, no shell, no git. The relay is a Switch agent with its own credential and its own room memberships, but the part that
+decides what crosses is this file: plain Python, no model, deny-by-default. It reads the inbox room's
+raw messages, validates every payload against a fixed contract, and posts only accepted tickets into
+the engineering room. Nothing from the inbox reaches the trusted agent's context unchecked. It holds
+one Switch connection, and never borrows another agent's credential or placement.
 """
 from __future__ import annotations
 

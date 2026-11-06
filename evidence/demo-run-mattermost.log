@@ -1,0 +1,45 @@
+teardown of any previous demo run (Switch side)
+  teardown room support-inbox-room: 200
+  teardown room engineering-room: 200
+  teardown agent support-inbox: 200
+  teardown agent release-engineer: 200
+  teardown agent clankers-relay: 200
+agents: support-inbox=1553caae-cbb1-4db3-b6cc-53a272e8f930 release-engineer=af11b92f-df4a-4911-a0a4-cbf0607f7226 clankers-relay=c60df5f2-b403-4940-8945-831a04acc250
+rooms: support-inbox-room=c4713d0a-0bc8-411f-83d4-4f719b1c97f9 engineering-room=637f22db-e3cb-4317-b61b-3845214de3e2
+
+mattermost: channel outsider-reports=reused id=zw5g3cbr, users outsider-reporter=au851yrw clankers-feed=4zb8mzs9
+  team membership: outsider-reporter=201, clankers-feed=201
+  channel membership: outsider-reporter=201, clankers-feed=201
+
+step 1 — the outsider posts both findings into the public channel (chat account only)
+  posted well-formed=201 hostile=201
+
+step 2 — the outsider's chat token is not a Switch credential
+  Switch agent roster: support-inbox, release-engineer, clankers-relay
+  outsider-reporter registered as a Switch agent: False
+  Switch API with the Mattermost token: 401 Invalid credentials
+
+step 3 — the ingest bridge reads the channel and hands raw payloads to Switch
+  bridge read 2 finding payload(s) from the channel after 1 poll(s)
+  bridge forwarded raw payload into inbox room: 200
+  bridge forwarded raw payload into inbox room: 200
+
+step 4 — the relay reads the inbox room with its OWN credential
+  relay read: 200 after 1 poll(s), 2 payload(s)
+
+step 5 — the contract relay validates each payload against the engineering repo
+  ACCEPTED file=pm/packages.py severity=high
+  REJECTED (unknown field(s) in contract: evidence)
+
+step 6 — the relay forwards only validated `{file, severity, summary}`
+  forwarded into engineering room: 200 {"file": "pm/packages.py", "severity": "high", "summary": "cache/uv grows forever: uv_cache_dir() creates it and no pruner reaps it, so hermes doctor warns about a directory Hermes owns"}
+
+step 7 — the trusted engineer reads its room
+  engineer read: 200 after 1 poll(s)
+  engineering room shows the validated ticket: True
+  engineering room shows the hostile text: False
+
+step 8 — Switch refuses the untrusted agent's direct read of the engineering room
+  support-inbox direct read: 403 {"detail":"Agent is not a member of this room"}
+
+RESULT: DEMO OK — the outsider's report entered through Mattermost with no Switch credential; the bridge carried it as data; the relay validated one ticket and refused the injection; Switch refused every direct cross-room read

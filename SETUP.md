@@ -12,13 +12,20 @@ No secrets in this repo. Credentials come from your own stack's `.env` (mode `06
 | `DEMO_LOG_FILE` | `/home/md/Documents/switch-evidence/demo-run.log` | Telemetry file. Logs contain no credentials. |
 | `ENGINEERING_REPO` | a local hermes-agent checkout | Root used to validate ticket `file` paths and to run `hermes pm cache-prune`. Any git repo works; the ticket path must resolve inside it. |
 | `DOCKER_HOST` | — | Needed for the Postgres teardown steps: on rootless Docker, `unix:///run/user/1000/docker.sock`. On Windows the container name `switch-postgres-1` must match your project name. |
+| `MATTERMOST_BASE` | `http://127.0.0.1:8065` | Mattermost base URL, for `demo_run_mattermost.py`. |
+| `MATTERMOST_URL` | (host:port, no scheme) | The stack env defines it that way; the bridge builds `http://$MATTERMOST_URL` when `MATTERMOST_BASE` is unset. |
+
+Both demo variants read `GATEWAY_ADMIN_EMAIL`, `GATEWAY_ADMIN_PASSWORD` and
+`SWITCH_AGENT_BRIDGE_REGISTRATION_TOKEN` from `SWITCH_ENV_FILE`. `demo_run_mattermost.py` also needs
+`MATTERMOST_ADMIN_USER` and `MATTERMOST_ADMIN_PASSWORD` from the same file.
 
 Run:
 
 ```bash
 cd relay
-uv run --no-project --with pytest pytest -q test_relay_contract.py   # 58 passed
+uv run --no-project --with pytest pytest -q test_relay_contract.py test_mattermost_feed.py   # 78 passed
 SWITCH_BASE=http://127.0.0.1:8100 ENGINEERING_REPO=/path/to/hermes-agent python3 demo_run.py
+SWITCH_BASE=http://127.0.0.1:8100 MATTERMOST_BASE=http://127.0.0.1:8065 ENGINEERING_REPO=/path/to/hermes-agent python3 demo_run_mattermost.py
 ```
 
 `demo_run.py` tears down the previous run first: it deletes the rooms and agents it created, then
@@ -43,11 +50,32 @@ The relay polls `GET /agents/{relay_id}/rooms/{room_id}/history?limit=50` on the
 `{"events": [...], "has_more": ...}`, and validates each payload through the contract. Only accepted
 tickets are posted to the engineering room with `POST /agents/{relay_id}/message` (`{room_id, content}`).
 
-The untrusted text is posted into the inbox room by `support-inbox` with its own key, which simulates
-an outsider's report landing in the inbox. The Mattermost channel path is not wired into this demo
-run: on a stack with Mattermost bridged, the outsider's text arrives in a channel and a bridge feeds
-the inbox room. The security-relevant property is unchanged — the crossing component is the relay,
-and the outsider's own credential never enters the engineering room.
+## How the outside world enters
+
+`demo_run_mattermost.py` is the wired path; `demo_run.py` is the Switch-native variant.
+
+Wired path (`mattermost_feed.py`), endpoints on this build:
+
+| step | endpoint |
+|---|---|
+| login | `POST /api/v4/users/login` with `{"login_id", "password"}`, token from the `Token` header |
+| team | `GET /api/v4/users/me/teams` |
+| public channel | `POST /api/v4/channels` with `{"team_id", "name", "display_name", "type": "P"}`; on `api.channel.save_channel.exists.app_error` it is looked up via `GET /api/v4/users/me/teams/{team}/channels` |
+| membership | `POST /api/v4/teams/{team}/members`, `POST /api/v4/channels/{channel}/members` |
+| read feed | `GET /api/v4/channels/{channel}/posts?since=<unix_ms>`, returning `{order, posts}` (newest-first) |
+| post | `POST /api/v4/posts` with `{"channel_id", "message"}` |
+
+The bridge forwards only lines starting with `FINDING `, verbatim, and validates nothing. It holds
+two credentials: the feed account's Mattermost token and the `support-inbox` agent key — that key is
+the inbox connector's own, not the outsider's. The outsider is a Mattermost user only, and the run
+shows the Switch API refusing its chat token (`401 Invalid credentials`).
+
+For the recording, this stack has channel creators set to open for workspace members so the outsider
+account can post without being a channel member; it remains a plain chat account with no Switch
+credential. In production, outsiders would be workspace guests in a reports channel.
+
+`demo_run.py` posts the same payloads into the inbox room with `support-inbox`'s key instead, showing
+the identical verdicts without the chat layer.
 
 ## Demo inputs (hardcoded in `demo_run.py`)
 
@@ -74,7 +102,13 @@ paths, instruction text in `summary`, and `IGNORE PREVIOUS INSTRUCTIONS` case-fo
   engineering room returns `403 Agent is not a member of this room`.
 - The engineering room contains the validated ticket and does not contain the hostile string.
 - The engineer's room never sees the rejected payload.
-- `evidence/relay-contract-tests.log` shows `58 passed`.
+- The outsider is absent from the Switch agent roster (the run prints the roster and asserts it), and
+  its Mattermost token is refused by the Switch API (`401`): the chat credential is not a
+  Switch credential.
+- `evidence/relay-contract-tests.log` shows `78 passed` (59 contract + 19 feed).
+- The wired run asserts nine conditions, including both payloads read by the bridge, exactly one
+  ACCEPTED, no hostile text in the engineering room, the outsider absent from the agent roster, and
+  `403` on the untrusted direct read.
 
 ## Honest limits
 
@@ -85,3 +119,13 @@ paths, instruction text in `summary`, and `IGNORE PREVIOUS INSTRUCTIONS` case-fo
   `0.31.0` come back as HTTP 500 rather than 403; that is version-local and not claimed elsewhere.
 - We do not claim Switch enforces a quarantine. Switch records the room and the human approval; the
   relay enforces what crosses.
+- The bridge is a poller, not a webhook receiver. Production would use a Mattermost outgoing webhook
+  or the WebSocket event stream; the credential boundary and validation order would be identical.
+- The demo's outsider and feed accounts are Mattermost accounts created by the script. The generated
+  passwords go only to the `0600` state file and are reused on later runs; if an account left by an
+  interrupted run can't be logged into, the script deletes it permanently and recreates it. There is
+  no admin password-reset path in this build.
+- The bridge reads posts from a cursor taken from the timestamps of the posts this run created, so
+  findings left in the channel by an earlier run are not re-ingested. `since` is exclusive.
+- Teardown removes the Switch agents and rooms it created. The Mattermost channel and the two demo
+  accounts persist by design so repeat runs reuse them; delete them manually for a clean workspace.

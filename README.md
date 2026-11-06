@@ -127,6 +127,7 @@ file and never reach the logs. Env overrides (`SWITCH_BASE`, `MATTERMOST_BASE`, 
 | `demo-run.log` | Switch-native variant: same verdicts without the chat layer |
 | `relay-contract-tests.log` | `78 passed` (59 contract + 19 feed) |
 | `mattermost-feed-tests.log` | feed parsing on its own |
+| `relay-contract-only.log` | the contract suite alone, so the 59/19 split is checkable |
 | `recheck-2026-11-05.log` | the corrected measurement behind the claim wording |
 | `hermes-fix-red.log` | the regression test failing **before** the fix |
 | `hermes-fix-green-targeted.log` | `22 passed` **after** the fix |

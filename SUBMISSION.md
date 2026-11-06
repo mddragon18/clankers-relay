@@ -72,6 +72,7 @@ lie, and then an engineer burns a branch on it. The refusals we did measure are 
 | Switch refuses cross-room read | `support-inbox direct read: 403 {"detail":"Agent is not a member of this room"}` |
 | contract + feed tests | `78 passed in 0.09s` (59 contract, 19 feed) |
 | fail-before / pass-after | `ModuleNotFoundError: No module named 'pm.cache_maintenance'` → `22 passed in 13.58s` |
+| unrelated suite failure, measured both ways | `test_cold_runtime_e2e.py[python3.11]`: `1 failed, 17 passed` on the base commit and `1 failed, 17 passed` with our change — identical, so neither introduced nor claimed by us |
 | the fix on a real cache | `removed 60 superseded entries, reclaimed 21.6 MB` against a 53 MB sample copied out of the live cache, 12 in-lock entries intact |
 
 ## Tech stack

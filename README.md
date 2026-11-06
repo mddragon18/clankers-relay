@@ -37,7 +37,8 @@ room member gets `403 Agent is not a member of this room` on both the `ops/*` an
 surfaces, measured with the untrusted agent's own credential (`evidence/demo-run.log` step 6,
 `evidence/demo-run-mattermost.log` step 8). The HTTP 500 we hit on authorization refusals exists
 only on the pinned `0.31.0` image's legacy moderation route; on `main` that route is gone and the
-4xx refusal is covered by `core/tests/switch_core/bridges/agent/api/test_refusal_status_codes.py`.
+4xx refusal is covered upstream by `core/tests/switch_core/bridges/agent/api/test_refusal_status_codes.py`
+in the Switch repo, not in this one.
 Nothing here was filed as a vulnerability: the gap is already tracked publicly as #805 with fixes
 open.
 
@@ -132,13 +133,16 @@ file and never reach the logs. Env overrides (`SWITCH_BASE`, `MATTERMOST_BASE`, 
 | `hermes-fix-red.log` | the regression test failing **before** the fix |
 | `hermes-fix-green-targeted.log` | `22 passed` **after** the fix |
 | `broad-suite-clean.log` | the clean broad suite around the fix: failures in 5 files, none in files this PR touches |
-| `pm-base-failure.log` | the pm suite run on the **base commit, with our change absent**: `1 failed, 17 passed`, and the failure is `test_cold_runtime_e2e.py[python3.11]` — the same failure the broad run reports |
+| `pm-base-failure.log` | the pm suite on the **base commit, our change absent**: `1 failed, 17 passed` |
+| `pm-fix-failure.log` | the same pm suite **with our change**: `1 failed, 17 passed`, same test, same id |
 | `cache-prune-livecheck.log` | the fix run against a sample copied out of the real cache |
 
-That pm failure is not ours: it reproduces on the base commit before any file this PR touches is
-present, so it predates the change. It is a cold-runtime end-to-end test that builds its own runtime
-from a served tarball, and it is the one broad-suite failure inside the package-management tree. Our
-targeted runs — the cache-maintenance tests and the relay contract — are green on the fix.
+That pm failure is not ours, and it's measured both ways: `test_cold_runtime_e2e.py[python3.11]`
+fails identically on the base commit (`1 failed, 17 passed in 1265.53s`) and with our change applied
+(`1 failed, 17 passed in 1088.94s`). It is a cold-runtime end-to-end test that builds its own runtime
+from a served tarball, and it is the only broad-suite failure inside the package-management tree — our
+change neither introduces nor fixes it. The targeted runs that actually cover this PR, the
+cache-maintenance tests and the relay contract, are green.
 
 Verbatim excerpt of `evidence/demo-run-mattermost.log` (the run's setup lines, which carry
 internal ids, are omitted):

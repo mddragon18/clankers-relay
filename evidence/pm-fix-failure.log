@@ -1,0 +1,6 @@
+127.0.0.1 - - [06/Nov/2026 09:08:27] "GET /uv.tar.gz HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 09:08:27] "GET /uv.tar.gz HTTP/1.1" 200 -
+127.0.0.1 - - [06/Nov/2026 09:08:27] "GET /uv.tar.gz HTTP/1.1" 200 -
+=========================== short test summary info ============================
+FAILED tests/pm/test_cold_runtime_e2e.py::test_cold_cli_builds_own_runtime_discovers_plugins_and_repairs_app[python3.11]
+1 failed, 17 passed in 1088.94s (0:18:08)

@@ -8,7 +8,7 @@ in `~/Documents/switch-evidence/`.
 ## Verification of the finding (Max's five questions)
 
 **1. Credential.** Every attack step used only the inbox agent's own agent key.
-`verify_finding.py` records the credential on each line of the log; steps 1–5 all
+`verify_finding.py` (in `~/switch-relay/`, not in this repo) records the credential on each line of the log; steps 1–5 all
 read `[credential: agent key (own credential)]`. The admin session appears twice
 only: reading the two agents' owner fields, and teardown. It never touched the
 attack path, and the attack path never used it.

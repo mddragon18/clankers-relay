@@ -106,9 +106,10 @@ paths, instruction text in `summary`, and `IGNORE PREVIOUS INSTRUCTIONS` case-fo
   its Mattermost token is refused by the Switch API (`401`): the chat credential is not a
   Switch credential.
 - `evidence/relay-contract-tests.log` shows `78 passed` (59 contract + 19 feed).
-- The wired run asserts nine conditions, including both payloads read by the bridge, exactly one
-  ACCEPTED, no hostile text in the engineering room, the outsider absent from the agent roster, and
-  `403` on the untrusted direct read.
+- The wired run's final check is seven conditions at once: the validated ticket crossed into the
+  engineering room, the hostile text did not, the untrusted direct read returned `403`, exactly one
+  payload was forwarded to engineering, the Mattermost token was refused by the Switch API, the
+  outsider is absent from the agent roster, and both channel payloads reached the inbox.
 
 ## Honest limits
 

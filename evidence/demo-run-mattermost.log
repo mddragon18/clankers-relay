@@ -4,14 +4,14 @@ teardown of any previous demo run (Switch side)
   teardown agent support-inbox: 200
   teardown agent release-engineer: 200
   teardown agent clankers-relay: 200
-agents: support-inbox=1553caae-cbb1-4db3-b6cc-53a272e8f930 release-engineer=af11b92f-df4a-4911-a0a4-cbf0607f7226 clankers-relay=c60df5f2-b403-4940-8945-831a04acc250
-rooms: support-inbox-room=c4713d0a-0bc8-411f-83d4-4f719b1c97f9 engineering-room=637f22db-e3cb-4317-b61b-3845214de3e2
+agents: support-inbox=bc7bf2f1-a70a-49c4-a20a-fa952d3ae32d release-engineer=84222d4b-bfe1-432a-92ce-20dfca474287 clankers-relay=93a96f23-aca7-464f-a74e-b9a7a01b79c0
+rooms: support-inbox-room=e9320e77-5f4c-473c-a5a5-883974ce309f engineering-room=760d607c-185b-4df8-a445-eefaa297b5ff
 
 mattermost: channel outsider-reports=reused id=zw5g3cbr, users outsider-reporter=au851yrw clankers-feed=4zb8mzs9
   team membership: outsider-reporter=201, clankers-feed=201
   channel membership: outsider-reporter=201, clankers-feed=201
 
-step 1 — the outsider posts both findings into the public channel (chat account only)
+step 1 — the outsider posts both findings into the channel outsider-reports (chat account and channel membership only)
   posted well-formed=201 hostile=201
 
 step 2 — the outsider's chat token is not a Switch credential

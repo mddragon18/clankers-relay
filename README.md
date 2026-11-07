@@ -10,7 +10,8 @@ here are not team members.
   no Switch API key, and no room membership** — the wired run reads the Switch agent roster and
   shows the outsider absent, then shows the Switch API refusing that chat token (`401`)
   (`evidence/demo-run-mattermost.log`, step 2).
-- An ingest bridge moves the raw text from the public channel into the Switch inbox room as the
+- An ingest bridge moves the raw text from the outsider-reporting channel into the Switch inbox
+  room as the
   inbox agent's connector. It enforces nothing: it is transport, so enforcement lives in one place.
 - A deterministic relay (plain Python, no model on the message path) validates against a fixed
   contract and forwards **exactly** `{"file", "severity", "summary"}` into the engineering room.
@@ -46,7 +47,8 @@ open.
 
 ```
 outsider (Mattermost account only)
-   │  posts "FINDING {...}" into the public channel outsider-reports
+   │  posts "FINDING {...}" into the channel outsider-reports (private; the outsider account
+   │  is a member of it, which is the only access it has)
    ▼
 mattermost_feed.py   ingest bridge — Mattermost token + support-inbox agent key, no enforcement
    │  hands the raw payloads over verbatim into support-inbox-room
@@ -108,7 +110,7 @@ refusing that account's chat token (`401 Invalid credentials`).
 
 ```bash
 cd relay
-uv run --with pytest pytest -q test_relay_contract.py test_mattermost_feed.py   # 78 passed
+uv run --with pytest pytest -q test_relay_contract.py test_mattermost_feed.py   # 81 passed
 python3 demo_run.py                                                              # Switch-native variant
 python3 demo_run_mattermost.py                                                   # Mattermost front door
 ```
@@ -126,7 +128,7 @@ file and never reach the logs. Env overrides (`SWITCH_BASE`, `MATTERMOST_BASE`, 
 |---|---|
 | `demo-run-mattermost.log` | the wired path: outsider posts `201`, chat token `401`, bridge reads 2 payloads, one ticket ACCEPTED, injection REJECTED, engineer sees only the ticket, `403` on the untrusted direct read |
 | `demo-run.log` | Switch-native variant: same verdicts without the chat layer |
-| `relay-contract-tests.log` | `78 passed` (59 contract + 19 feed) |
+| `relay-contract-tests.log` | `81 passed` (59 contract + 22 feed) |
 | `mattermost-feed-tests.log` | feed parsing on its own |
 | `relay-contract-only.log` | the contract suite alone, so the 59/19 split is checkable |
 | `recheck-2026-11-05.log` | the corrected measurement behind the claim wording |
@@ -148,7 +150,7 @@ Verbatim excerpt of `evidence/demo-run-mattermost.log` (the run's setup lines, w
 internal ids, are omitted):
 
 ```
-step 1 — the outsider posts both findings into the public channel (chat account only)
+step 1 — the outsider posts both findings into the channel outsider-reports (chat account and channel membership only)
   posted well-formed=201 hostile=201
 
 step 2 — the outsider's chat token is not a Switch credential
@@ -232,7 +234,7 @@ against a 53 MB sample copied out of that real cache: `removed 60 superseded ent
 relay/relay.py                  deterministic validator
 relay/mattermost_feed.py        Mattermost ingest bridge — the front door
 relay/test_relay_contract.py    59 contract tests
-relay/test_mattermost_feed.py   19 feed tests, offline (transport monkeypatched)
+relay/test_mattermost_feed.py   22 feed tests, offline (transport monkeypatched)
 relay/demo_run.py               live-stack run, Switch-native variant
 relay/demo_run_mattermost.py    live-stack run through the Mattermost front door
 findings.md                     what we measured on Switch 0.31.0, and how the framing changed

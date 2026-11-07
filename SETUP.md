@@ -23,7 +23,7 @@ Run:
 
 ```bash
 cd relay
-uv run --no-project --with pytest pytest -q test_relay_contract.py test_mattermost_feed.py   # 78 passed
+uv run --no-project --with pytest pytest -q test_relay_contract.py test_mattermost_feed.py   # 81 passed
 SWITCH_BASE=http://127.0.0.1:8100 ENGINEERING_REPO=/path/to/hermes-agent python3 demo_run.py
 SWITCH_BASE=http://127.0.0.1:8100 MATTERMOST_BASE=http://127.0.0.1:8065 ENGINEERING_REPO=/path/to/hermes-agent python3 demo_run_mattermost.py
 ```
@@ -60,8 +60,9 @@ Wired path (`mattermost_feed.py`), endpoints on this build:
 |---|---|
 | login | `POST /api/v4/users/login` with `{"login_id", "password"}`, token from the `Token` header |
 | team | `GET /api/v4/users/me/teams` |
-| public channel | `POST /api/v4/channels` with `{"team_id", "name", "display_name", "type": "P"}`; on `api.channel.save_channel.exists.app_error` it is looked up via `GET /api/v4/users/me/teams/{team}/channels` |
+| channel | `POST /api/v4/channels` with `{"team_id", "name", "display_name", "type": "P"}` (private, members = the demo accounts); on `api.channel.save_channel.exists.app_error` it is looked up via `GET /api/v4/users/me/teams/{team}/channels?include_deleted=true` and `POST /api/v4/channels/{id}/restore` if it was archived |
 | membership | `POST /api/v4/teams/{team}/members`, `POST /api/v4/channels/{channel}/members` |
+| channel type | cannot be changed after creation (`PUT /api/v4/channels/{id}` -> `api.channel.update_channel.typechange.app_error`), and `DELETE /api/v4/channels/{id}/permanent` is 404 on Team Edition 11.9. So the channel is simply private, and nothing in the docs claims otherwise. |
 | read feed | `GET /api/v4/channels/{channel}/posts?since=<unix_ms>`, returning `{order, posts}` (newest-first) |
 | post | `POST /api/v4/posts` with `{"channel_id", "message"}` |
 
@@ -96,7 +97,20 @@ Rejection reason in the log: `unknown field(s) in contract: evidence`. Also cove
 tests: severity outside the enum, non-string field types, path escaping the repo root, absolute
 paths, instruction text in `summary`, and `IGNORE PREVIOUS INSTRUCTIONS` case-folded.
 
-## What the demo asserts
+## Watching the channel in the browser
+
+`outsider-reports` is a private channel. Two ways to see it:
+
+1. Log in as `outsider-reporter`. Its password is stored in the demo state file under
+   `mattermost.outsider_password` (file mode 0600). Keep the file out of frame or close the tab.
+2. Add your own account as a member: `POST /api/v4/channels/{channel_id}/members` with
+   `{"user_id": "<your user id>"}` using an admin token.
+
+The channel id is printed by the demo (`mattermost: channel outsider-reports=... id=...`). Open that
+channel, not any similarly-named one left over from an earlier attempt: Mattermost names collisions
+`outsider-reports-2`, `-3`, and those are not the channel the demo posts into.
+
+## What the run asserts
 
 - The relay's inbox read succeeds with its own credential; `support-inbox`'s direct read of the
   engineering room returns `403 Agent is not a member of this room`.
@@ -105,7 +119,7 @@ paths, instruction text in `summary`, and `IGNORE PREVIOUS INSTRUCTIONS` case-fo
 - The outsider is absent from the Switch agent roster (the run prints the roster and asserts it), and
   its Mattermost token is refused by the Switch API (`401`): the chat credential is not a
   Switch credential.
-- `evidence/relay-contract-tests.log` shows `78 passed` (59 contract + 19 feed).
+- `evidence/relay-contract-tests.log` shows `81 passed` (59 contract + 22 feed).
 - The wired run's final check is seven conditions at once: the validated ticket crossed into the
   engineering room, the hostile text did not, the untrusted direct read returned `403`, exactly one
   payload was forwarded to engineering, the Mattermost token was refused by the Switch API, the

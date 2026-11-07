@@ -30,7 +30,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import demo_run as D  # noqa: E402  reuse the Switch-side helpers, unchanged
 from mattermost_feed import (mm_account_with_login, mm_add_to_channel, mm_add_to_team, mm_call,
-                             mm_ensure_public_channel, mm_findings_since, mm_login, mm_post_capture,
+                             mm_ensure_channel, mm_findings_since, mm_login, mm_post_capture,
                              mm_team_id)  # noqa: E402
 
 MM_BASE = os.environ.get("MATTERMOST_BASE", "http://127.0.0.1:8065")
@@ -73,7 +73,7 @@ def main() -> int:
     # --- Mattermost side: the front door ---
     mm_admin = mm_login(MM_BASE, D.env("MATTERMOST_ADMIN_USER"), D.env("MATTERMOST_ADMIN_PASSWORD"))
     team = mm_team_id(MM_BASE, mm_admin)
-    channel_id, created = mm_ensure_public_channel(MM_BASE, mm_admin, CHANNEL_NAME, "Outsider Reports")
+    channel_id, created = mm_ensure_channel(MM_BASE, mm_admin, CHANNEL_NAME, "Outsider Reports")
     # Passwords are generated once and kept in the state file (mode 0600): the accounts persist across
     # runs and this Mattermost build has no admin password-reset endpoint, so a fresh password each
     # run would lock us out of our own accounts.
@@ -97,7 +97,8 @@ def main() -> int:
     say(f"  channel membership: {OUTSIDER}={mm_add_to_channel(MM_BASE, mm_admin, channel_id, outsider_id)}, "
         f"{FEED_USER}={mm_add_to_channel(MM_BASE, mm_admin, channel_id, feed_id)}")
 
-    say("\nstep 1 — the outsider posts both findings into the public channel (chat account only)")
+    say("\nstep 1 — the outsider posts both findings into the channel outsider-reports "
+        "(chat account and channel membership only)")
     s1, at1 = mm_post_capture(MM_BASE, outsider_tok, channel_id, f"FINDING {D.TICKET}")
     s2, at2 = mm_post_capture(MM_BASE, outsider_tok, channel_id, f"FINDING {D.HOSTILE}")
     say(f"  posted well-formed={s1} hostile={s2}")

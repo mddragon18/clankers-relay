@@ -19,7 +19,13 @@ and close any terminal tab that shows `.env`.
 
 ## 0:22–0:45 — the front door (Mattermost UI, the `outsider-reports` channel)
 
-Show the channel with the two posts: one well-formed ticket, one hostile payload.
+Show the channel with the two posts: one well-formed ticket, one hostile payload. The channel is
+private, so log into Mattermost as `outsider-reporter` (its password is in the demo state file, mode
+0600 — keep the file itself out of frame) or add your own account as a member with
+`POST /api/v4/channels/{id}/members`. Do not show a different channel: the demo prints the channel
+name and id on its `mattermost: channel ...` line, and that is the one to open on camera.
+
+Do not say "public channel" — it is private, and membership is the outsider's only access.
 
 > This is the outside. A plain chat account — no Switch agent record, no Switch API key, no room
 > membership. It posted two findings here. The bridge reads this channel and hands the raw payloads
@@ -46,10 +52,10 @@ Scroll to `ALLOWED_KEYS`, `SEVERITIES`, the path checks, `_INSTRUCTION_MARKERS`.
 Cut to `relay/test_relay_contract.py` and show the summary line:
 
 ```
-78 passed in 0.09s
+81 passed in 0.09s
 ```
 
-> 59 contract tests plus 19 on the feed path, including path escape, symlink escape, absolute paths,
+> 59 contract tests plus 22 on the feed path, including path escape, symlink escape, absolute paths,
 > wrong severity type, and `IGNORE PREVIOUS INSTRUCTIONS` case-folded.
 
 ## 1:15–2:05 — one crossing, live (`demo_run_mattermost.py` running in a terminal)
@@ -59,7 +65,7 @@ Point at each line as it prints. This is the core of the video — give it the t
 > Watch the same text go through the system.
 
 ```
-step 1 — the outsider posts both findings into the public channel (chat account only)
+step 1 — the outsider posts both findings into the channel outsider-reports (chat account and channel membership only)
   posted well-formed=201 hostile=201
 
 step 2 — the outsider's chat token is not a Switch credential

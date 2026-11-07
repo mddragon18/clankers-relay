@@ -5,7 +5,8 @@ Why this file exists. Track 01's story is "bug reports arrive from outside the t
 deployment an outsider signs into the chat front end (Mattermost) and has no Switch agent record,
 no Switch API key, and no room membership anywhere. This bridge is the inbox agent's connector:
 it holds a Mattermost token plus the `support-inbox` agent key, moves raw finding payloads from a
-public channel into the Switch inbox room verbatim, and does no enforcement of its own.
+private outsider-reporting channel into the Switch inbox room verbatim, and does no
+enforcement of its own.
 
 Enforcement stays in the relay (`relay.py`), which is the only component that crosses into the
 engineering room. The bridge deliberately forwards unvalidated text: it is transport, so the
@@ -59,19 +60,41 @@ def mm_team_id(base: str, token: str) -> str:
     return teams[0]["id"]
 
 
-def mm_ensure_public_channel(base: str, admin_token: str, name: str, display_name: str):
-    """Create the channel, or find the existing one. Returns `(channel_id, created_bool)`."""
+def mm_ensure_channel(base: str, admin_token: str, name: str, display_name: str):
+    """Create the outsider-reporting channel (private type), or find the existing one and restore it
+    if an earlier hand archived it. Returns `(channel_id, created_bool)`.
+
+    The channel is private, and it stays private. Measured on Mattermost Team Edition 11.9:
+      - `PUT /api/v4/channels/{id}` with a new type returns
+        `api.channel.update_channel.typechange.app_error` ("Channel type cannot be updated"), so a
+        channel cannot be flipped from private to public after creation;
+      - `DELETE /api/v4/channels/{id}` soft-archives it and `/{id}/permanent` returns 404 (no
+        permanent channel delete in this build), and the name stays reserved afterwards, so
+        "delete and recreate as public" is not available either.
+    So the honest design is: a private channel whose members are exactly the demo's accounts, and the
+    docs say exactly that. The outsider's account is added as a member, which is the whole point:
+    visibility comes from chat membership, never from a Switch credential.
+    """
     team = mm_team_id(base, admin_token)
     s, b, _ = mm_call(base, "/api/v4/channels", "POST",
                       {"team_id": team, "name": name, "display_name": display_name, "type": "P",
                        "purpose": "untrusted outsider bug reports"}, token=admin_token)
     if s in (200, 201):
         return json.loads(b)["id"], True
-    # Already exists (or created by an earlier run): look it up in the caller's channel list.
-    s, b, _ = mm_call(base, f"/api/v4/users/me/teams/{team}/channels", token=admin_token)
+    # Already exists (or was created by an earlier run): look it up, including archived ones.
+    s, b, _ = mm_call(base, f"/api/v4/users/me/teams/{team}/channels?include_deleted=true",
+                      token=admin_token)
     if s == 200:
         for c in json.loads(b):
             if c["name"] == name:
+                if c.get("delete_at"):
+                    # Someone archived the channel between runs. Restore it rather than silently
+                    # starting a new channel that the recorder would not recognise on camera.
+                    rs, rb, _ = mm_call(base, f"/api/v4/channels/{c['id']}/restore", "POST",
+                                       token=admin_token)
+                    if rs not in (200, 201):
+                        raise RuntimeError(f"archived channel {name} could not be restored: "
+                                           f"{rs} {rb[:120]}")
                 return c["id"], False
     raise RuntimeError(f"channel {name} unavailable: create={s}, lookup={b[:120]}")
 

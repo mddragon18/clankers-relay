@@ -59,7 +59,7 @@ def test_channel_create_path(monkeypatch):
             return (201, '{"id":"chan1"}', "")
         raise AssertionError(f"unexpected {path}")
     monkeypatch.setattr(F, "mm_call", fake)
-    cid, created = F.mm_ensure_public_channel("http://mm", "tok", "outsider-reports", "Outsider Reports")
+    cid, created = F.mm_ensure_channel("http://mm", "tok", "outsider-reports", "Outsider Reports")
     assert (cid, created) == ("chan1", True)
     assert calls[1][2]["type"] == "P" and calls[1][2]["name"] == "outsider-reports"
 
@@ -70,11 +70,64 @@ def test_channel_lookup_when_create_says_exists(monkeypatch):
             return (200, '[{"id":"team1"}]', "")
         if path == "/api/v4/channels":
             return (409, '{"id":"api.channel.save_channel.exists.app_error"}', "")
-        if path == "/api/v4/users/me/teams/team1/channels":
-            return (200, '[{"name":"town-square","id":"ts"},{"name":"outsider-reports","id":"chan2"}]', "")
+        if path == "/api/v4/users/me/teams/team1/channels?include_deleted=true":
+            return (200, '[{"name":"town-square","id":"ts","type":"O","delete_at":0},'
+                         '{"name":"outsider-reports","id":"chan2","type":"P","delete_at":0}]', "")
         raise AssertionError(f"unexpected {path}")
     monkeypatch.setattr(F, "mm_call", fake)
-    assert F.mm_ensure_public_channel("http://mm", "tok", "outsider-reports", "x") == ("chan2", False)
+    assert F.mm_ensure_channel("http://mm", "tok", "outsider-reports", "x") == ("chan2", False)
+
+
+def test_a_leftover_private_channel_is_reused_as_is(monkeypatch):
+    """Mattermost 11.9 refuses a channel type change, so the run must reuse the existing channel and
+    claim nothing about it being public."""
+    calls: list[tuple] = []
+
+    def fake(base, path, method="GET", body=None, token=None):
+        calls.append((path, method, body))
+        if path == "/api/v4/users/me/teams":
+            return (200, '[{"id":"team1"}]', "")
+        if path == "/api/v4/channels" and method == "POST":
+            return (409, '{"id":"api.channel.save_channel.exists.app_error"}', "")
+        if path == "/api/v4/users/me/teams/team1/channels?include_deleted=true":
+            return (200, '[{"name":"outsider-reports","id":"chan3","type":"P","delete_at":0}]', "")
+        raise AssertionError(f"unexpected {path} {method}")
+    monkeypatch.setattr(F, "mm_call", fake)
+    assert F.mm_ensure_channel("http://mm", "tok", "outsider-reports", "x") == ("chan3", False)
+    assert not [c for c in calls if c[1] in ("PUT", "DELETE")], "no type change or delete is attempted"
+
+
+def test_an_archived_channel_is_restored_instead_of_starting_a_new_one(monkeypatch):
+    calls: list[tuple] = []
+
+    def fake(base, path, method="GET", body=None, token=None):
+        calls.append((path, method, body))
+        if path == "/api/v4/users/me/teams":
+            return (200, '[{"id":"team1"}]', "")
+        if path == "/api/v4/channels" and method == "POST":
+            return (409, '{"id":"api.channel.save_channel.exists.app_error"}', "")
+        if path == "/api/v4/users/me/teams/team1/channels?include_deleted=true":
+            return (200, '[{"name":"outsider-reports","id":"chan9","type":"P","delete_at":1793000000000}]', "")
+        if path == "/api/v4/channels/chan9/restore" and method == "POST":
+            return (200, '{"id":"chan9","delete_at":0}', "")
+        raise AssertionError(f"unexpected {path} {method}")
+    monkeypatch.setattr(F, "mm_call", fake)
+    assert F.mm_ensure_channel("http://mm", "tok", "outsider-reports", "x") == ("chan9", False)
+    assert ("/api/v4/channels/chan9/restore", "POST", None) in calls
+
+
+def test_an_archived_channel_that_will_not_restore_is_not_silently_replaced(monkeypatch):
+    def fake(base, path, method="GET", body=None, token=None):
+        if path == "/api/v4/users/me/teams":
+            return (200, '[{"id":"team1"}]', "")
+        if path == "/api/v4/channels" and method == "POST":
+            return (409, '{"id":"api.channel.save_channel.exists.app_error"}', "")
+        if path == "/api/v4/users/me/teams/team1/channels?include_deleted=true":
+            return (200, '[{"name":"outsider-reports","id":"chanX","type":"P","delete_at":1793000000000}]', "")
+        return (500, '{"id":"api.channel.restore_channel.restored.app_error"}', "")
+    monkeypatch.setattr(F, "mm_call", fake)
+    with pytest.raises(RuntimeError, match="could not be restored: 500"):
+        F.mm_ensure_channel("http://mm", "tok", "outsider-reports", "x")
 
 
 def test_channel_unavailable_surfaces_both_errors(monkeypatch):
@@ -84,7 +137,7 @@ def test_channel_unavailable_surfaces_both_errors(monkeypatch):
         return (404, "gone", "")
     monkeypatch.setattr(F, "mm_call", fake)
     with pytest.raises(RuntimeError, match="channel x unavailable: create=404, lookup=gone"):
-        F.mm_ensure_public_channel("http://mm", "tok", "x", "x")
+        F.mm_ensure_channel("http://mm", "tok", "x", "x")
 
 
 def test_user_created_or_reused_by_username(monkeypatch):
